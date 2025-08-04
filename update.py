@@ -168,12 +168,19 @@ async def main():
                 path.unlink()
             continue
 
+        path = Path(url[url_prefix_len:])
+
+        # ignore annas-torrents torrents
+        # example:
+        # torrents/managed_by_aa/annas-torrents-2025-07-14.torrent/annas-torrents-2025-07-14.torrent
+        if str(path).startswith("torrents/managed_by_aa/annas-torrents-"):
+            continue
+
         torrent_date_int = parse_date(torrent['added_to_torrents_list_at'])
 
         if torrent_date_int > last_torrent_date_int:
             last_torrent_date_int = torrent_date_int
 
-        path = Path(url[url_prefix_len:])
         if path.exists():
             actual_size = path.stat().st_size
             if actual_size != size:
