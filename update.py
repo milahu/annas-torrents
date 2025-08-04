@@ -186,7 +186,8 @@ async def main():
             if actual_size != size:
                 print(f"removing {path} (size mismatch)", file=sys.stderr)
                 path.unlink()
-            continue
+            else:
+                continue
 
         download_urls.append(url)
 
