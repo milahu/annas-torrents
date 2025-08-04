@@ -1,4 +1,4 @@
 release/*/
-torrents.json
-torrents.tar.xz
+torrents.json*
+torrents.tar.xz*
 torrents/
