@@ -1,14 +1,12 @@
 #!/usr/bin/env python3
 
-torrents_archive_path = "torrents.tar.xz"
-version_file_path = "version.txt"
+torrents_archive_dst_filename = "torrents.tar.xz"
+torrents_archive_path_glob = "torrents.????-??-??.tar.xz"
+torrents_archive_path_version_regex = r"torrents\.([0-9-]{10})\.tar\.xz"
 
-move_content_file_list = [
-    torrents_archive_path,
-]
+version_filename = "version.txt"
 
 copy_content_file_list = [
-    version_file_path,
     "mount.sh",
     "release.py",
     "shell.nix",
@@ -37,6 +35,7 @@ import urllib.parse
 import dataclasses
 import subprocess
 import json
+import glob
 
 # from torf import Torrent
 import torf
@@ -50,37 +49,42 @@ def parse_trackerlist(trackerlist):
     re.S
   )
 
-trackers = parse_trackerlist(trackerlist)
-
-print("trackers")
-for t in trackers:
-    print(f"  {t}")
-
 
 
 def main():
 
-    with open(version_file_path) as f:
-        version = f.read().strip()
+    torrents_archive_path = (sorted(glob.glob(torrents_archive_path_glob) or [None]))[-1]
+    if torrents_archive_path is None:
+        print(f"error: not found input files with glob pattern {torrents_archive_path_glob}")
+        sys.exit(1)
+
+    print(f"torrents_archive_path {torrents_archive_path}")
+
+    version = re.match(torrents_archive_path_version_regex, torrents_archive_path).group(1)
+    print(f"version {version}")
 
     # content_path = f"release/{version}/annas-torrents"
     content_path = f"release/annas-torrents-{version}"
     # content_path = os.path.normpath(content_path)
-    print("content_path", content_path)
-
     if os.path.exists(content_path):
         print(f"error: content_path exists: {content_path}")
-        return 1
+        sys.exit(1)
+    print("content_path", content_path)
+
+    torrent_file_path = f"{content_path}.torrent"
+    if os.path.exists(torrent_file_path):
+        print(f"error: torrent_file_path exists: {torrent_file_path}")
+        sys.exit(1)
 
     os.makedirs(content_path)
 
-    for content_file in move_content_file_list + copy_content_file_list:
+    for content_file in copy_content_file_list:
         assert os.path.exists(content_file), f"missing file: {content_file}"
 
-    for content_file in move_content_file_list:
-        dst = f"{content_path}/{content_file}"
-        print(f"moving content_file {content_file}")
-        shutil.move(content_file, dst)
+    src = torrents_archive_path
+    dst = f"{content_path}/{torrents_archive_dst_filename}"
+    print(f"moving {src} to {dst}")
+    shutil.move(src, dst)
 
     for content_file in copy_content_file_list:
         dst = f"{content_path}/{content_file}"
@@ -90,7 +94,14 @@ def main():
         else:
             shutil.copy(content_file, dst)
 
-    torrent_file_path = f"{content_path}.torrent"
+    with open(f"{content_path}/{version_filename}", "w") as f:
+        f.write(f"{version}\n")
+
+    trackers = parse_trackerlist(trackerlist)
+
+    print("trackers")
+    for t in trackers:
+        print(f"  {t}")
 
     print("creating new torrent file")
     t = torf.Torrent(
